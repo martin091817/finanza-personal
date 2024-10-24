@@ -1,8 +1,11 @@
+import io
+import matplotlib.pyplot as plt
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, send_file, request, jsonify
 from .models import Ingreso, Gasto, Ahorro
 from . import db
 from flask_jwt_extended import jwt_required, get_jwt_identity  # Importar JWT
+from datetime import datetime
 
 main = Blueprint('main', __name__)
 
@@ -160,3 +163,86 @@ def delete_ahorro(ahorro_id):
     db.session.delete(ahorro)
     db.session.commit()
     return jsonify({'message': 'Ahorro deleted successfully'}), 200
+
+# Generar reportes de ingresos con filtros
+
+@main.route('/reportes', methods=['GET'])
+@jwt_required()  # Proteger la ruta con JWT
+def generar_reporte():
+    current_user_id = get_jwt_identity()  # Obtener el ID del usuario autenticado
+
+    # Obtener los filtros desde la solicitud
+    categoria = request.args.get('categoria')  # Tipo de ingreso o gasto
+    metodo = request.args.get('metodo')  # Método de pago
+    fecha_inicio = request.args.get('fecha_inicio')
+    fecha_fin = request.args.get('fecha_fin')
+
+    # Convertir las fechas de string a objeto datetime (si existen)
+    try:
+        if fecha_inicio:
+            fecha_inicio = datetime.strptime(fecha_inicio.strip(), '%Y-%m-%d').date()
+        if fecha_fin:
+            fecha_fin = datetime.strptime(fecha_fin.strip(), '%Y-%m-%d').date()
+    except ValueError as e:
+        return jsonify({"error": f"Formato de fecha incorrecto: {str(e)}"}), 400
+
+    # Filtrar ingresos y gastos por usuario
+    ingresos = Ingreso.query.filter_by(usuario_id=current_user_id).all()
+    gastos = Gasto.query.filter_by(usuario_id=current_user_id).all()
+
+    # Filtrar por categoría
+    if categoria:
+        ingresos = [i for i in ingresos if i.tipo == categoria]
+        gastos = [g for g in gastos if g.tipo == categoria]
+
+    # Filtrar por método de pago
+    if metodo:
+        ingresos = [i for i in ingresos if i.metodo == metodo]
+        gastos = [g for g in gastos if g.metodo == metodo]
+
+    # Filtrar por rango de fechas
+    if fecha_inicio and fecha_fin:
+        ingresos = [i for i in ingresos if fecha_inicio <= i.fecha <= fecha_fin]
+        gastos = [g for g in gastos if fecha_inicio <= g.fecha <= fecha_fin]
+
+    # Verificar si hay datos
+    if not ingresos and not gastos:
+        return jsonify({"message": "No se encontraron datos para los filtros aplicados."}), 200
+
+    # Preparar los datos para graficar
+    conceptos_ingresos = [i.concepto for i in ingresos]
+    valores_ingresos = [i.valor for i in ingresos]
+
+    conceptos_gastos = [g.concepto for g in gastos]
+    valores_gastos = [g.valor for g in gastos]
+
+    # Crear la gráfica
+    plt.figure(figsize=(10, 6))
+
+    # Gráfico de ingresos
+    plt.subplot(1, 2, 1)
+    if ingresos:
+        plt.bar(conceptos_ingresos, valores_ingresos, color='green')
+        plt.title('Ingresos')
+        plt.xticks(rotation=45, ha='right')
+    else:
+        plt.text(0.5, 0.5, 'No hay ingresos', horizontalalignment='center', verticalalignment='center')
+
+    # Gráfico de gastos
+    plt.subplot(1, 2, 2)
+    if gastos:
+        plt.bar(conceptos_gastos, valores_gastos, color='red')
+        plt.title('Gastos')
+        plt.xticks(rotation=45, ha='right')
+    else:
+        plt.text(0.5, 0.5, 'No hay gastos', horizontalalignment='center', verticalalignment='center')
+
+    # Guardar el gráfico en memoria y enviarlo como respuesta
+    img = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    plt.close()
+
+    # Enviar el gráfico como archivo descargable
+    return send_file(img, mimetype='image/png', as_attachment=True, download_name='reporte.png')
