@@ -1,10 +1,12 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager  # Nuevo: Importar JWTManager
 from config import Config
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
+jwt = JWTManager()  # Nuevo: Inicializar JWT
 
 def create_app():
     app = Flask(__name__)
@@ -12,6 +14,7 @@ def create_app():
 
     db.init_app(app)
     bcrypt.init_app(app)
+    jwt.init_app(app)  # Nuevo: Iniciar JWT con la app
 
     from .routes import main as main_blueprint
     app.register_blueprint(main_blueprint)
