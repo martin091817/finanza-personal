@@ -1,4 +1,4 @@
-from app import create_app, db
+from Flask.app import create_app, db
 from app.models import Usuario, Ingreso, Gasto, Ahorro
 
 app = create_app()
