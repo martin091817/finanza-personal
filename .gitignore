@@ -1,0 +1,14 @@
+# Ignorar entornos virtuales
+venv/
+
+# Ignorar archivo de variables de entorno
+.env
+
+# Ignorar cachés de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar la base de datos SQLite local
+Flask/app.db
+
