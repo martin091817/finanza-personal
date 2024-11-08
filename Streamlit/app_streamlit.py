@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # Endpoint base de la API Flask
-API_BASE_URL = "http://127.0.0.1:5000"
+API_BASE_URL = "API_BASE_URL"
 
 # Variable para almacenar el token JWT
 jwt_token = ""
